@@ -200,16 +200,87 @@ map.oneLinkAway = function(sys){
   }
   return output;
 };
-map.generateRecourceCentres = function(){
-  var starList = _.without(_.range(systemsArr.length),sys);
-  var green,brown,yellow,greenEligible,brownEligible,yellowEligible, barren;
-  var numGreen,numBrown,numYellow;
-  //set resourees at homeworlds
-  for (var i in map.homeworlds){
-    green.push(map.homeworlds[i]);
-    brown.push(map.homeworlds[i]);
+map.generateResourceCentres = function(){
+  var starList = _.difference(_.range(systemsArr.length),map.homeworlds);
+  var green=[],brown=[],yellow=[],greenEligible=[],brownEligible=[],yellowEligible=[],barren=[];
+  var numGreen=12;
+  var numBrown=13;
+  var numYellow=5;
+  
+  for (var i in map.homeworlds) {
+    barren.push(map.oneLinkAway(map.homeworlds[i]));
   }
-  return{"green":green,"brown":brown,"yellow":yellow};
+  barren = _.flatten(barren).sort();
+  starList = _.difference(starList,barren);
+  //set resourees at homeworlds(one bown/one green)
+  for (var l in map.homeworlds){
+    green.push(map.homeworlds[l]);
+    brown.push(map.homeworlds[l]);
+  }
+  //set stars 2 links away from homeworlds
+  //for home0 what are the stars Push values?
+  //build link arrays for each homeworld
+  for(var m in map.homeworlds){
+    var homeNumber = map.homeworlds[m];
+    systemsArr[homeNumber].greenAt2 = [];
+    systemsArr[homeNumber].brownAt2 = [];
+    systemsArr[homeNumber].linkMap = map.buildStarLinks(homeNumber);
+    //for each homeworld, locate all the stars 2 links away, and put them into an object property on the home star twoLinks
+    systemsArr[homeNumber].twoLinks = systemsArr[homeNumber].linkMap[2];
+    for (var j in systemsArr[homeNumber].twoLinks){
+      //add the push value and make it an object
+      systemsArr[homeNumber].twoLinks[j] = {"sys":systemsArr[homeNumber].twoLinks[j],"pusH":map.pushValue(systemsArr[homeNumber].twoLinks[j])};
+      //find the systems in twoLinks that are eligible for Green dots(push 3-4)
+      if(systemsArr[homeNumber].twoLinks[j].pusH<5) {
+        systemsArr[homeNumber].greenAt2.push(systemsArr[homeNumber].twoLinks[j].sys);
+      }
+      //find the systems in  twolinks that are eligible for brown dots(push 3-4-5)
+      if(systemsArr[homeNumber].twoLinks[j].pusH<6) {
+        systemsArr[homeNumber].brownAt2.push(systemsArr[homeNumber].twoLinks[j].sys);
+      }
+    }
+    // for each home system, randomly determine mix of 2 brown and/or green dots
+    var greenNumAt2 = _.random(2);
+    var brownNumAt2 = Math.abs(greenNumAt2 - 2);
+    var newgreen = _.sample(systemsArr[homeNumber].greenAt2,greenNumAt2);
+    barren=_.union(barren,systemsArr[homeNumber].greenAt2,systemsArr[homeNumber].brownAt2);
+    var newbrown = _.sample(systemsArr[homeNumber].brownAt2,brownNumAt2);
+    green = _.union(green,newgreen);
+    brown = _.union(brown,newbrown);
+    _.times(newgreen.length,function(){--numGreen;});
+    _.times(newbrown.length,function(){--numBrown;});
+    //convenient to add the constraint that yellow cannot be within 2 jumps of a homeworld here
+    
+  }
+
+  starList = _.uniq(_.difference(starList,_.union(barren,green,brown,map.homeworlds)));
+  //fill green and brwon eligible lists//set brown eligible stars
+  for (var k in starList){
+    if (map.pushValue(starList[k])<5){greenEligible.push(starList[k]);}
+    if (map.pushValue(starList[k])<6){brownEligible.push(starList[k]);}
+  }
+  
+  //choose green and brown stars
+  green.push(_.sample(greenEligible,numGreen));
+  brown.push(_.sample(brownEligible,numBrown));
+  green = _.flatten(green);
+  brown = _.flatten(brown);
+  yellowEligible = _.difference(starList,_.union(green,brown));
+
+  //console.log(yellowEligible);
+  yellow.push(_.sample(yellowEligible,numYellow));
+  yellow=_.flatten(yellow);
+  //set yellow eligilbe stars
+  //choose yellow stars
+  for (var gr in green){systemsArr[green[gr]].green=true;}
+  for (var br in brown){systemsArr[brown[br]].brown=true;}
+  for (var yl in yellow){systemsArr[yellow[yl]].yellow=true;}
+  //return{"green":green,"brown":brown,"yellow":yellow};
+  return JSON.stringify(systemsArr);
 };
 
+ 
+map.pushValue = function(sys){
+  return systemsArr[sys].push + map.oneLinkAway(sys).length;
+};
 
